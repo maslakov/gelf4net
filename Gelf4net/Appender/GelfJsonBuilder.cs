@@ -1,144 +1,184 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System.Collections;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using log4net.Appender;
 using log4net.Core;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Esilog.Gelf4net.Appender
 {
-    class GelfJsonBuilder
+    internal class GelfJsonBuilder
     {
-        private static int SHORT_MESSAGE_LENGTH = 250;
-        private const string GELF_VERSION = "1.0";
+        private static Int32 SHORT_MESSAGE_LENGTH = 250;
+        private const String GELF_VERSION = "1.0";
+        private static readonly DateTime Epoch = new DateTime(1970, 1, 1, 0, 0, 0,
+                                                      DateTimeKind.Utc);
 
-        internal string BuildFromLoggingEvent(string message, log4net.Core.LoggingEvent loggingEvent, string hostName, string facility, bool isConfiguredToIncludeLocationInformation, Dictionary<string, string> innerAdditionalFields)
+
+        internal String BuildFromLoggingEvent(
+            String message, log4net.Core.LoggingEvent loggingEvent, String hostName, String facility,
+            Boolean isConfiguredToIncludeLocationInformation, Dictionary<String, String> innerAdditionalFields )
         {
-            var fullMessage = GetFullMessage(message, loggingEvent);
+            var fullMessage = GetFullMessage( message, loggingEvent );
             var gelfMessage = new GelfMessage
             {
                 Facility = (facility ?? "GELF"),
-                File = "",
+                File =
+                    isConfiguredToIncludeLocationInformation ? loggingEvent.LocationInformation.FileName : String.Empty,
                 FullMesage = fullMessage,
                 Host = hostName,
-                Level = GetSyslogSeverity(loggingEvent.Level),
-                Line = "",
-                ShortMessage = GetShortMessage(fullMessage),
-                TimeStamp = loggingEvent.TimeStamp,
+                Level = GetSyslogSeverity( loggingEvent.Level ),
+                Line =
+                    isConfiguredToIncludeLocationInformation
+                        ? loggingEvent.LocationInformation.LineNumber
+                        : String.Empty,
+                ShortMessage = GetShortMessage( fullMessage ),
+                TimeStamp = GetUnixTimestamp( loggingEvent.TimeStamp ),
                 Version = GELF_VERSION,
             };
 
-            if (isConfiguredToIncludeLocationInformation)
-            {
-                gelfMessage.File = loggingEvent.LocationInformation.FileName;
-                gelfMessage.Line = loggingEvent.LocationInformation.LineNumber;
-            }
-
-            return GetGelfJsonMessage(loggingEvent, innerAdditionalFields, gelfMessage);
+            return GetGelfJsonMessage( loggingEvent, innerAdditionalFields, gelfMessage );
         }
 
-        private string GetFullMessage(string message, log4net.Core.LoggingEvent loggingEvent)
+        private Decimal GetUnixTimestamp(DateTime time)
+        {
+            var unixRef = new DateTime(1970, 1, 1, 0, 0, 0);
+            return (Decimal)(time.Ticks - unixRef.Ticks) / 10000000;
+        }
+
+        private String GetFullMessage( String message, log4net.Core.LoggingEvent loggingEvent )
         {
             var fullMessage = message;
-            if (loggingEvent.ExceptionObject != null)
+            if( loggingEvent.ExceptionObject != null )
             {
-                fullMessage = String.Format("{0} - {1}. {2}. {3}.", fullMessage, loggingEvent.ExceptionObject.Source, loggingEvent.ExceptionObject.Message, loggingEvent.ExceptionObject.StackTrace);
+                fullMessage = String.Format(
+                    "{0} - {1}. {2}. {3}.", fullMessage, loggingEvent.ExceptionObject.Source,
+                    loggingEvent.ExceptionObject.Message, loggingEvent.ExceptionObject.StackTrace );
             }
             return fullMessage;
         }
 
-        private static string GetShortMessage(string fullMessage)
+        private static String GetShortMessage( String fullMessage )
         {
             return (fullMessage.Length > SHORT_MESSAGE_LENGTH)
-                ? fullMessage.Substring(0, SHORT_MESSAGE_LENGTH - 1)
-                : fullMessage;
+                       ? fullMessage.Substring( 0, SHORT_MESSAGE_LENGTH - 1 )
+                       : fullMessage;
         }
 
-        private string GetGelfJsonMessage(log4net.Core.LoggingEvent loggingEvent, Dictionary<string, string> innerAdditionalFields, GelfMessage gelfMessage)
+        private String GetGelfJsonMessage(
+            log4net.Core.LoggingEvent loggingEvent, Dictionary<String, String> innerAdditionalFields,
+            GelfMessage gelfMessage )
         {
-            var gelfJsonMessage = JsonConvert.SerializeObject(gelfMessage);
-            var jsonObject = JObject.Parse(gelfJsonMessage);
-            AddInnerAdditionalFields(jsonObject, innerAdditionalFields);
-            AddLoggingEventAdditionalFields(jsonObject, loggingEvent);
+            var gelfJsonMessage = JsonConvert.SerializeObject( gelfMessage );
+            var jsonObject = JObject.Parse( gelfJsonMessage );
+            AddInnerAdditionalFields( jsonObject, innerAdditionalFields );
+            AddLoggingEventAdditionalFields( jsonObject, loggingEvent );
             return jsonObject.ToString();
         }
 
-        private void AddInnerAdditionalFields(JObject jsonObject, Dictionary<string, string> innerAdditionalFields)
+        private void AddInnerAdditionalFields( JObject jsonObject, Dictionary<String, String> innerAdditionalFields )
         {
-            if (innerAdditionalFields == null) return;
-            foreach (var item in innerAdditionalFields)
+            if( innerAdditionalFields == null )
             {
-                AddAdditionalFields(item.Key, item.Value, jsonObject);
+                return;
+            }
+            foreach( var item in innerAdditionalFields )
+            {
+                AddAdditionalFields( item.Key, item.Value, jsonObject );
             }
         }
 
-        private void AddLoggingEventAdditionalFields(JObject jsonObject, LoggingEvent loggingEvent)
+        private void AddLoggingEventAdditionalFields( JObject jsonObject, LoggingEvent loggingEvent )
         {
-            if (loggingEvent.Properties == null) return;
-            foreach (DictionaryEntry item in loggingEvent.Properties)
+            if( loggingEvent.Properties == null )
             {
-                var key = item.Key as string;
-                if (key != null)
+                return;
+            }
+            foreach( DictionaryEntry item in loggingEvent.Properties )
+            {
+                var key = item.Key as String;
+                if( key != null )
                 {
-                    AddAdditionalFields(key, item.Value as string, jsonObject);
+                    AddAdditionalFields( key, item.Value as String, jsonObject );
                 }
             }
         }
 
-        private void AddAdditionalFields(string key, string value, JObject jsonObject)
+        private void AddAdditionalFields( String key, String value, JObject jsonObject )
         {
-            if (key == null) return;
-
-            if (!key.StartsWith("_"))
-                key = String.Format("_{0}", key);
-
-            if (key != "_id")
+            if( key == null )
             {
-                key = Regex.Replace(key, "[\\W]", "");
-                jsonObject.Add(key, value);
+                return;
+            }
+
+            if( !key.StartsWith( "_" ) )
+            {
+                key = String.Format( "_{0}", key );
+            }
+
+            if( key != "_id" )
+            {
+                key = Regex.Replace( key, "[\\W]", "" );
+                jsonObject.Add( key, value );
             }
         }
-        private int GetSyslogSeverity(log4net.Core.Level level)
+
+        private Int32 GetSyslogSeverity( log4net.Core.Level level )
         {
-            if (level == log4net.Core.Level.Alert)
-                return (int)LocalSyslogAppender.SyslogSeverity.Alert;
+            if( level == log4net.Core.Level.Alert )
+            {
+                return (Int32)LocalSyslogAppender.SyslogSeverity.Alert;
+            }
 
-            if (level == log4net.Core.Level.Critical || level == log4net.Core.Level.Fatal)
-                return (int)LocalSyslogAppender.SyslogSeverity.Critical;
+            if( level == log4net.Core.Level.Critical || level == log4net.Core.Level.Fatal )
+            {
+                return (Int32)LocalSyslogAppender.SyslogSeverity.Critical;
+            }
 
-            if (level == log4net.Core.Level.Debug)
-                return (int)LocalSyslogAppender.SyslogSeverity.Debug;
+            if( level == log4net.Core.Level.Debug )
+            {
+                return (Int32)LocalSyslogAppender.SyslogSeverity.Debug;
+            }
 
-            if (level == log4net.Core.Level.Emergency)
-                return (int)LocalSyslogAppender.SyslogSeverity.Emergency;
+            if( level == log4net.Core.Level.Emergency )
+            {
+                return (Int32)LocalSyslogAppender.SyslogSeverity.Emergency;
+            }
 
-            if (level == log4net.Core.Level.Error)
-                return (int)LocalSyslogAppender.SyslogSeverity.Error;
+            if( level == log4net.Core.Level.Error )
+            {
+                return (Int32)LocalSyslogAppender.SyslogSeverity.Error;
+            }
 
-            if (level == log4net.Core.Level.Fine
+            if( level == log4net.Core.Level.Fine
                 || level == log4net.Core.Level.Finer
                 || level == log4net.Core.Level.Finest
                 || level == log4net.Core.Level.Info
-                || level == log4net.Core.Level.Off)
-                return (int)LocalSyslogAppender.SyslogSeverity.Informational;
+                || level == log4net.Core.Level.Off )
+            {
+                return (Int32)LocalSyslogAppender.SyslogSeverity.Informational;
+            }
 
-            if (level == log4net.Core.Level.Notice
+            if( level == log4net.Core.Level.Notice
                 || level == log4net.Core.Level.Verbose
-                || level == log4net.Core.Level.Trace)
-                return (int)LocalSyslogAppender.SyslogSeverity.Notice;
+                || level == log4net.Core.Level.Trace )
+            {
+                return (Int32)LocalSyslogAppender.SyslogSeverity.Notice;
+            }
 
-            if (level == log4net.Core.Level.Severe)
-                return (int)LocalSyslogAppender.SyslogSeverity.Emergency;
+            if( level == log4net.Core.Level.Severe )
+            {
+                return (Int32)LocalSyslogAppender.SyslogSeverity.Emergency;
+            }
 
-            if (level == log4net.Core.Level.Warn)
-                return (int)LocalSyslogAppender.SyslogSeverity.Warning;
+            if( level == log4net.Core.Level.Warn )
+            {
+                return (Int32)LocalSyslogAppender.SyslogSeverity.Warning;
+            }
 
-            return (int)LocalSyslogAppender.SyslogSeverity.Debug;
+            return (Int32)LocalSyslogAppender.SyslogSeverity.Debug;
         }
-
     }
 }

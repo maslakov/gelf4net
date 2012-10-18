@@ -1,18 +1,38 @@
-﻿using RabbitMQ.Client;
+﻿using System;
+using RabbitMQ.Client;
 
 namespace Esilog.Gelf4net.Transport
 {
-    class AmqpTransport : GelfTransport
+    internal class AmqpTransport : GelfTransport
     {
-        public string VirtualHost { get; set; }
-        public string User { get; set; }
-        public string Password { get; set; }
-        public string Queue { get; set; }
+        public String VirtualHost
+        {
+            get;
+            set;
+        }
 
-        public override void Send(string serverHostName, string serverIpAddress, int serverPort, string message)
+        public String User
+        {
+            get;
+            set;
+        }
+
+        public String Password
+        {
+            get;
+            set;
+        }
+
+        public String Queue
+        {
+            get;
+            set;
+        }
+
+        public override void Send( String serverHostName, String serverIpAddress, Int32 serverPort, String message )
         {
             //Create the Connection 
-            var factory = new ConnectionFactory()
+            var factory = new ConnectionFactory
             {
                 Protocol = Protocols.FromEnvironment(),
                 HostName = serverIpAddress,
@@ -22,15 +42,14 @@ namespace Esilog.Gelf4net.Transport
                 Password = Password
             };
 
-            using (IConnection conn = factory.CreateConnection())
+            using( IConnection conn = factory.CreateConnection() )
             {
                 var model = conn.CreateModel();
-                model.ExchangeDeclare("sendExchange", ExchangeType.Direct);
-                model.QueueDeclare(Queue, true, true, true, null);
-                model.QueueBind(Queue, "sendExchange", "key");
-                byte[] messageBodyBytes = GzipMessage(message);
-                model.BasicPublish(Queue, "key", null, messageBodyBytes);
-
+                model.ExchangeDeclare( "sendExchange", ExchangeType.Direct );
+                model.QueueDeclare( Queue, true, true, true, null );
+                model.QueueBind( Queue, "sendExchange", "key" );
+                Byte[] messageBodyBytes = GzipMessage( message );
+                model.BasicPublish( Queue, "key", null, messageBodyBytes );
             }
         }
     }
