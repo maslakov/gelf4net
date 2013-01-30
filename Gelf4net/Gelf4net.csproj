@@ -45,18 +45,18 @@
     <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="log4net">
+    <Reference Include="log4net, Version=1.2.11.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Build_Depends\log4net.dll</HintPath>
+      <HintPath>..\packages\log4net.1.2.11\log4net.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json">
-      <HintPath>..\..\..\Build_Depends\Newtonsoft.Json.dll</HintPath>
+      <HintPath>..\packages\Newtonsoft.Json.4.5.1\lib\net40\Newtonsoft.Json.dll</HintPath>
     </Reference>
-    <Reference Include="RabbitMQ.Client, Version=2.3.1.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce">
-      <HintPath>..\..\..\Build_Depends\RabbitMQ.Client.dll</HintPath>
+    <Reference Include="RabbitMQ.Client">
+      <HintPath>..\packages\RabbitMQ.Client.dll</HintPath>
     </Reference>
-    <Reference Include="RabbitMQ.ServiceModel, Version=2.3.1.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\..\..\Build_Depends\RabbitMQ.ServiceModel.dll</HintPath>
+    <Reference Include="RabbitMQ.ServiceModel">
+      <HintPath>..\packages\RabbitMQ.ServiceModel.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
